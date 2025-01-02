@@ -37,3 +37,5 @@ Youtube Tutorial: [Click Unlisted Video Here](#)
 Deployed Webpage: https://shoc71.github.io/Task-Tracker-and-Manager/
 
 GitHub Profile: [shoc71](https://github.com/shoc71)
+
+GitHub Page: [Task-Racer](https://github.com/shoc71/Task-Racer)
