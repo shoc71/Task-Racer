@@ -4,6 +4,10 @@ import datetime
 
 # global
 JSON_FILEPATH = 'data.json'
+STATUS_DONE = 'mark-done'
+STATUS_TODO = 'todo'
+STATUS_IN_PROGRESS = 'mark-in-progress'
+NUMBER_STR_IN_LIST = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
 DESCRIPTION = '''
 What function would you like to do? 
 1. Add task (add "")
@@ -19,13 +23,14 @@ What function would you like to do?
 task-cli: '''
 
 # loading json (if file found)
-try: 
-    with open(JSON_FILEPATH, 'r', encoding='utf-8', errors='ignore') as file:
-        data = json.load(file)
-        print('successfully load of memory.')
-except FileNotFoundError as e:
-    print(f'{e}. Creating a new file.')
-    data = []
+def loadFile(filepath: str):
+    try: 
+        with open(filepath, 'r', encoding='utf-8', errors='ignore') as file:
+            print('Successfully load of memory.')
+            return json.load(file)
+    except FileNotFoundError:
+        print(f"File '{filepath}' not found. Creating a new one.")
+        data = []
 
 # functions
 def updateDateTime():
@@ -39,18 +44,36 @@ def quitText():
           f'Thanks for using this task manager. '
           f'End of program.')
 
-def displayAllTasks(json_data : dict):
-    for dic in json_data: # possible one-liner but it looks weird
-        print(
-                f'\n'
-                f'ID: {dic['id']} - '
-                f'Description: {dic['description']} - '
-                f'Status: {dic['status'].upper()}'
-            )
+# This is bad however this was not a bug that crashs the program
+def validateTaskID(user_input : str, json_data : list):
 
-def displayTaskStatus(json_data : dict, status : str):
+    options = [STATUS_DONE, STATUS_IN_PROGRESS, 'update', 'delete']
+
+    if user_input.startswith((STATUS_DONE, STATUS_IN_PROGRESS, 'update', 'delete')):
+
+        new_str_list = ''.join([user_input.removeprefix(opt).strip() 
+                for opt in options if user_input.startswith(opt)])
+
+        digit = ''
+        for num in new_str_list:
+            if num in NUMBER_STR_IN_LIST:
+                digit += num
+            else:
+                break
+
+        for dic in json_data:
+            if (dic['id'] == int(digit)):
+                # print(f'ID: {dic['id']} found')
+                return True
+
+        print(f"ID \'{int(digit)}\' not found")
+    
+    return True
+
+# Status as None works here making the for if work with or without a status entered.
+def displayTaskStatus(json_data : dict, status : str = None):
     for dic in json_data:
-        if dic['status'] == status:
+        if (dic['status'] == status) or (status is None):
             print(
                     f'\n'
                     f'ID: {dic['id']} - '
@@ -63,7 +86,7 @@ def addTasktoData(user_input : str, json_data : list):
     print(f'Task Added; {user_input}')
     return json_data.append(
             { # Last ID found (most likely highest) + 1 or its becomes one with no data
-            'id' : (json_data[-1]['id'] + 1) if len(data) > 0 else 1,
+            'id' : (json_data[-1]['id'] + 1) if len(json_data) > 0 else 1,
             'description' : descriptionQuoteCorrection(user_input), 
             'status' : 'todo',
             'createdAt' : updateDateTime(),
@@ -77,9 +100,9 @@ def updateTaskData(user_input : str, json_data : list):
     
     # to seperate the ID_number from the description            
     for num in user_input:
-        if num in ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']:
+        if num in NUMBER_STR_IN_LIST:
             id_number += str(num)
-        elif num not in ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']:
+        elif num not in NUMBER_STR_IN_LIST:
             break # preventing descripting numbers to be mixed with ID
             
     updated_text = user_input.replace(id_number, "")
@@ -96,7 +119,8 @@ def updateTaskData(user_input : str, json_data : list):
     return json_data
 
 def updateTaskStatus(user_input : str, json_data : list, mark_status : str):
-    id_number = int(user_input.replace(mark_status,''))
+    temp = user_input.replace(mark_status,'')
+    id_number = int(temp)
     
     for dic in json_data:
         if (dic['id'] == id_number):
@@ -120,38 +144,39 @@ def deleteTask(user_input : str, json_data : list):
     return json_data
 
 # writing new data over old data
-def saveFile(json_data : list):
-    with open (JSON_FILEPATH, 'w') as outfile:
-        json.dump(json_data, outfile)
+def saveFile(filepath: str, json_data : list):
+    with open (filepath, 'w') as outfile:
+        json.dump(json_data, outfile, indent=4)
 
-    displayAllTasks(json_data)
+    displayTaskStatus(json_data)
+    print(f"Data successfully saved to {filepath}.")
 
 # Main loop for running program
 def main():
-    while True:
-        user_input = input(DESCRIPTION)
+    data = loadFile(JSON_FILEPATH) # modularized to improve usability
 
-        if (user_input[0:3] == 'add'):
+    while True:
+        user_input = input(DESCRIPTION).lower().strip()
+
+        if not validateTaskID(user_input, data):
+            continue
+
+        if user_input.startswith('add'):
             addTasktoData(user_input, data)
-        elif (user_input[0:6] == 'update'):
+        elif user_input.startswith('update'):
             updateTaskData(user_input, data)
-        elif (user_input[0:6] == 'delete'):
+        elif user_input.startswith('delete'):
             deleteTask(user_input, data)
-        elif (user_input[0:16] == 'mark-in-progress'):
-            updateTaskStatus(user_input, data, 'mark-in-progress')
-        elif (user_input[0:9] == 'mark-done'):
-            updateTaskStatus(user_input, data, 'mark-done')
-        elif (user_input == 'list'):
-            displayAllTasks(data)
-        elif (user_input == 'list done'):
-            displayTaskStatus(data, 'done')
-        elif (user_input == 'list todo'):
-            displayTaskStatus(data, 'todo')
-        elif (user_input == 'list in-progress'):
-            displayTaskStatus(data, 'in-progress')
-        elif (user_input in ['quit', 'exit']):
+        elif user_input.startswith('mark-in-progress'):
+            updateTaskStatus(user_input, data, STATUS_IN_PROGRESS)
+        elif user_input.startswith('mark-done'):
+            updateTaskStatus(user_input, data, STATUS_DONE)
+        elif user_input.startswith('list'):
+            status = user_input.replace('list', '').strip()
+            displayTaskStatus(data, status if status else None)
+        elif user_input in ['quit', 'exit']:
+            saveFile(JSON_FILEPATH, data)
             quitText()
-            saveFile(data)
             break
 
 # making sure this is the only python file that runs
